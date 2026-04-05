@@ -1,0 +1,217 @@
+openapi: 3.0.0
+info:
+  title: Personalized Book Recommender API
+  version: 1.0.0
+  description: API for managing user books and generating AI recommendations.
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+security:
+  - BearerAuth: []
+
+paths:
+  # Authentication
+  /api/auth/register:
+    post:
+      summary: Register a new user
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password, name]
+              properties:
+                email: { type: string, format: email }
+                password: { type: string, minLength: 8 }
+                name: { type: string }
+      responses:
+        '201':
+          description: User created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+
+  /api/auth/login:
+    post:
+      summary: Login user
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email: { type: string }
+                password: { type: string }
+      responses:
+        '200':
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+
+  /api/auth/forgot-password:
+    post:
+      summary: Request password reset
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties: { email: { type: string } }
+      responses:
+        '200': { description: Reset email sent }
+
+  # Books
+  /api/books:
+    get:
+      summary: List users books
+      parameters:
+        - { name: page, in: query, schema: { type: integer } }
+        - { name: search, in: query, schema: { type: string } }
+      responses:
+        '200':
+          description: List of books
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Book' }
+    post:
+      summary: Add a new book
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                title: { type: string }
+                author: { type: string }
+                image: { type: string, format: binary }
+      responses:
+        '201':
+          description: Book created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Book' }
+
+  /api/books/{book_id}:
+    get:
+      summary: Get book details
+      parameters:
+        - { name: book_id, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Book' }
+    put:
+      summary: Update book details
+      parameters:
+        - { name: book_id, in: path, required: true, schema: { type: string, format: uuid } }
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/BookInput' }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Book' }
+    delete:
+      summary: Delete a book
+      parameters:
+        - { name: book_id, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        '200': { description: Book deleted }
+
+  # Recommendations
+  /api/recommendations/generate:
+    post:
+      summary: Generate recommendations from a reference book
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties: { reference_book_id: { type: string, format: uuid } }
+      responses:
+        '201':
+          description: Generated 3 recommendations
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Recommendation' }
+
+  /api/recommendations:
+    get:
+      summary: List recommendations
+      parameters:
+        - { name: is_accepted, in: query, schema: { type: boolean } }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Recommendation' }
+
+  /api/recommendations/{rec_id}/accept:
+    put:
+      summary: Accept a recommendation
+      parameters:
+        - { name: rec_id, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Recommendation' }
+
+schemas:
+  AuthResponse:
+    type: object
+    properties:
+      user_id: { type: string, format: uuid }
+      email: { type: string }
+      access_token: { type: string }
+
+  Book:
+    type: object
+    properties:
+      book_id: { type: string, format: uuid }
+      title: { type: string }
+      author: { type: string }
+      reading_status: { type: string }
+      personal_rating: { type: integer }
+      cover_image_url: { type: string }
+
+  BookInput:
+    type: object
+    properties:
+      title: { type: string }
+      author: { type: string }
+      rating: { type: integer }
+      notes: { type: string }
+
+  Recommendation:
+    type: object
+    properties:
+      recommendation_id: { type: string, format: uuid }
+      recommended_title: { type: string }
+      recommended_author: { type: string }
+      recommendation_reason: { type: string }
+      is_accepted: { type: boolean }
